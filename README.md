@@ -26,6 +26,11 @@
     - **[bat](https://github.com/sharkdp/bat)**: `cat` 的替代品,支持语法高亮和 Git 集成.
     - **[ripgrep (rg)](https://github.com/BurntSushi/ripgrep)**: 极速的文件内容搜索工具,`grep` 的强力替代.
     - **[fzf](https://github.com/junegunn/fzf)**: 通用的命令行模糊搜索器,可与众多工具集成.
+    - **[glow](https://github.com/charmbracelet/glow)**: 在终端中排版阅读 Markdown,也能浏览仓库中的文档.
+    - **[yq](https://github.com/mikefarah/yq)**: 使用类似 jq 的语法查询和处理 YAML 配置.
+    - **[dust](https://github.com/bootandy/dust)**: 用目录树和占用比例定位磁盘空间消耗.
+- **终端工作区:**
+    - **[Herdr](https://herdr.dev/tui/)**: 管理终端工作区、标签页和面板,支持编码 Agent 与持久会话.
 - **强大的文本编辑器:**
     - **Vim** 作为主力编辑器,通过 `vim-plug` 管理插件.
     - 预装了代码格式化、Git 集成、快速导航等实用插件.
@@ -40,14 +45,21 @@ git clone https://github.com/in64/dotfiles.git ~/.dotfiles && cd ~/.dotfiles && 
 
 脚本会自动完成以下所有工作:
 1.  **检测操作系统** (macOS 或 Linux).
-2.  **智能网络优化**: 如果检测到在中国大陆,将自动为 Homebrew、GitHub、vim-plug 等设置镜像或代理,加速下载.
-3.  **安装软件包**:
-    - 在 **macOS** 上, 使用 Homebrew 安装必要的工具.
-    - 在 **Linux** (Debian/Ubuntu) 上, 使用 `apt` 安装基础包,并从 GitHub Releases 自动下载安装 `eza`, `delta` 等工具的最新二进制版本到 `~/.local/bin`.
-4.  **链接配置文件**: 自动将 `home/` 目录下的配置文件链接到您的主目录.
-5.  **安装 Vim 插件**: 自动下载 `vim-plug` 并安装/更新所有插件.
+2.  **准备系统依赖**: Linux 先通过 `apt` (Debian/Ubuntu) 或 `dnf` (RHEL/Rocky/Alma) 安装 curl、证书、jq、rsync 等依赖; root 直接安装,普通用户通过 sudo 安装. macOS 使用系统 curl,并在需要时安装和初始化 Homebrew.
+3.  **智能网络优化**: 如果检测到在中国大陆,将自动为 Homebrew、GitHub、vim-plug 等设置镜像或代理,加速下载. Linux 的地区检测在 curl 安装完成后执行.
+4.  **安装工具**: macOS 使用 Homebrew; Linux 将 GitHub Release 中缺失或不可用的工具安装到 `~/.local/bin`. 下载和解压先在临时目录完成,运行检查通过后再放入目标位置.
+5.  **链接配置文件**: 优先创建硬链接,跨文件系统等情况下回退为复制. Git 更新后重新执行安装,即可重新应用配置.
+6.  **同步 Vim 插件**: 自动下载 `vim-plug`,以无交互方式同步插件并清理已从配置删除的插件.
 
 安装完成后, 重启 Shell 或运行 `source ~/.bashrc` 即可生效.
+
+脚本可以重复执行. 已可运行的 GitHub 二进制和已有 Herdr 会复用; fzf 还会检查 `--bash` 集成是否可用. 系统包和 Vim 插件仍沿用各自的安装/更新方式. 不要求预装 curl、jq 或 rsync,但系统包安装需要相应权限,包源与下载地址需要可访问.
+
+也可以显式指定下载代理前缀:
+
+```bash
+PREFIX_PROXY=https://spu.seiya.dev/ ./install.sh
+```
 
 ## 目录结构
 
@@ -100,11 +112,32 @@ git clone https://github.com/in64/dotfiles.git ~/.dotfiles && cd ~/.dotfiles && 
 | `la` | `eza -la` | 以长列表格式显示所有文件 (包括隐藏文件). |
 | `cd` | `cd -P` | 切换目录,解析物理路径. |
 | `vi` | `vim` | 使用 `vim` 打开文件. |
-| `tmux` | `tmux -2` | 以 256 色模式启动 `tmux`. |
 | `grep` | `grep --color=auto -I` | 带颜色的 `grep`, 忽略二进制文件. |
 | `pkill` | `pkill -u $USER` | 杀死当前用户的所有进程. |
 | `pw` | `pwd` | 显示当前工作目录. |
 | `cat` | `bat` | `cat` 的现代替代品 (如果 `bat` 不存在则无此别名). |
+
+### 阅读文档、处理配置和定位空间占用
+
+```bash
+glow -p README.md                    # 分页阅读排版后的 Markdown
+glow                                # 浏览当前目录或 Git 仓库中的 Markdown
+yq '.services | keys' compose.yaml   # 列出 Compose 服务
+yq '.services.web.image' compose.yaml
+dust -d 2 .                         # 查看两层目录的空间占用
+```
+
+### 文件与内容检索
+
+- **`Ctrl-T`**: 用 rg 列出项目文件,遵循忽略规则并包含未被忽略的隐藏文件; bat 预览前 300 行. 目录切换继续使用 fzf 的 `Alt-C` 或 zoxide.
+- **`Ctrl-R`**: 使用 fzf 搜索历史命令.
+- **`rgi <表达式> [文件或目录...]`**: 搜索正文,预览匹配行,回车后在 Vim 中打开对应文件和行; 取消选择不会打开编辑器.
+- 已设置的 `FZF_DEFAULT_COMMAND`、`FZF_CTRL_T_COMMAND` 和非空 `FZF_CTRL_T_OPTS` 会保留.
+
+```bash
+rgi 'install_from_github'       # 搜索当前目录
+rgi 'timeout|retry' lib         # 限定目录
+```
 
 ### Git 工作流
 
@@ -134,6 +167,7 @@ git clone https://github.com/in64/dotfiles.git ~/.dotfiles && cd ~/.dotfiles && 
 
 | 插件 | 功能说明 |
 |---|---|
+| `junegunn/fzf` | fzf 的 Vim 基础 runtime,复用安装器提供的 fzf 二进制. |
 | `junegunn/fzf.vim` | 模糊搜索神器,用于快速查找文件、缓冲区、历史记录等. |
 | `ludovicchabant/vim-gutentags` | 在后台自动管理 `tags` 文件,实现无缝的代码定义跳转. |
 | `bling/vim-airline` | 一个高度可定制的美观状态栏,显示各种有用信息. |
@@ -141,7 +175,6 @@ git clone https://github.com/in64/dotfiles.git ~/.dotfiles && cd ~/.dotfiles && 
 | `nathanaelkane/vim-indent-guides` | 以可视化的方式显示缩进线,帮助保持代码整洁. |
 | `airblade/vim-gitgutter` | 在编辑器侧边栏 (sign column) 显示当前文件的 Git diff 信息 (增/删/改). |
 | `vim-scripts/a.vim` | 在 C/C++ 的头文件 (`.h`) 和源文件 (`.cpp`) 之间快速切换. |
-| `tsaleh/vim-tmux` | 增强 Vim 和 Tmux 之间的集成,例如在面板间无缝导航. |
 | `junegunn/vim-easy-align` | 一个简单的对齐工具,可以按等号、逗号等符号对齐代码块. |
 | `easymotion/vim-easymotion` | 极大地增强了屏幕内的光标移动能力,实现指哪打哪. |
 | `scrooloose/nerdcommenter` | 提供了强大的代码注释功能,支持多种语言和注释风格. |
@@ -169,22 +202,16 @@ git clone https://github.com/in64/dotfiles.git ~/.dotfiles && cd ~/.dotfiles && 
 | `<C-J>` | Normal/Insert | 格式化当前代码 (支持 Python, C, C++). |
 | `:JsonFormat` | Command | 将当前文件作为 JSON 进行格式化. |
 
-### Tmux 终端复用 (`~/.tmux.conf`)
+### Herdr 终端工作区
 
-配置了基本的快捷键,使其更符合直觉. **前缀键 (Prefix) 为默认的 `Ctrl-b`**.
+直接启动或接入已有会话,也可以使用命名会话区分项目:
 
-| 快捷键 | 功能 |
-|---|---|
-| `Prefix` `s` | 垂直分割窗口 (当前面板下方). |
-| `Prefix` `v` | 水平分割窗口 (当前面板右侧). |
-| `Prefix` `h` / `j` / `k` / `l` | 切换到左 / 下 / 上 / 右侧的面板. |
-| `Prefix` `<` / `>` | 向左 / 右调整当前面板大小. |
-| `Prefix` `-` / `+` | 向下 / 上调整当前面板大小. |
-| `Prefix` `:` | 进入命令提示符. |
+```bash
+herdr
+herdr --session project
+```
 
-**其他设置**: 
-- 窗口和面板的编号从 `1` 开始.
-- 开启 `vi` 模式, 可以在复制模式下使用 `vi` 的按键进行导航和选择.
+仓库使用 Herdr 的默认配置,不自动启动会话或安装 Agent 集成. 快捷键和设置见 [Herdr 文档](https://herdr.dev/tui/docs/). 安装器不再安装 Tmux、分发其配置或加载 Vim 的 Tmux 插件; 已有 Tmux 安装和会话不会被主动删除或停止.
 
 ### 其他配置文件
 
@@ -206,3 +233,13 @@ git clone https://github.com/in64/dotfiles.git ~/.dotfiles && cd ~/.dotfiles && 
 
 - **Shell 私有配置**:
   可以创建一个 `~/.bashrc.local` 文件 (需手动创建),用于存放您不想提交到仓库的个人别名、函数或环境变量. 然后在 `home/.bashrc` 文件末尾添加 `source ~/.bashrc.local` 来加载它.
+
+## 开发检查
+
+```bash
+bash -n install.sh
+shellcheck install.sh home/.bashrc lib/*.sh
+python3 -m unittest discover -s tests -v
+```
+
+回归测试在临时 HOME 和模拟包管理器下运行,不安装系统软件或改写当前用户配置; 实际发行版的安装结果需要在对应系统中验证.

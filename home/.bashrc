@@ -23,7 +23,9 @@ export HISTSIZE=30000
 export HISTFILESIZE=20000
 export HISTTIMEFORMAT="%F %T "
 shopt -s histappend
-PROMPT_COMMAND="history -a; ${PROMPT_COMMAND:-}"
+if [[ ";${PROMPT_COMMAND:-};" != *';history -a;'* ]]; then
+  PROMPT_COMMAND="history -a${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+fi
 
 # 如果 starship 已安装, 则初始化.
 if command -v starship &> /dev/null; then
@@ -37,5 +39,12 @@ fi
 
 # 如果 fzf 已安装, 则初始化.
 if command -v fzf &> /dev/null; then
+  if command -v rg &> /dev/null; then
+    export FZF_DEFAULT_COMMAND="${FZF_DEFAULT_COMMAND-rg --files --hidden --glob '!.git'}"
+    export FZF_CTRL_T_COMMAND="${FZF_CTRL_T_COMMAND-$FZF_DEFAULT_COMMAND}"
+  fi
+  if command -v bat &> /dev/null && [[ -z "${FZF_CTRL_T_OPTS:-}" ]]; then
+    export FZF_CTRL_T_OPTS="--preview 'bat --style=numbers --color=always --line-range=:300 -- {}'"
+  fi
   eval "$(fzf --bash)"
 fi

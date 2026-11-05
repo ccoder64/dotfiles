@@ -46,6 +46,7 @@ filetype off
 
 call plug#begin('~/.vim/plugged')
 
+Plug 'junegunn/fzf'
 Plug 'junegunn/fzf.vim'
 Plug 'ludovicchabant/vim-gutentags'
 Plug 'bling/vim-airline'
@@ -53,7 +54,6 @@ Plug 'vim-airline/vim-airline-themes'
 Plug 'nathanaelkane/vim-indent-guides'
 Plug 'airblade/vim-gitgutter'
 Plug 'vim-scripts/a.vim'
-Plug 'tsaleh/vim-tmux'
 Plug 'junegunn/vim-easy-align', { 'on': '<Plug>(EasyAlign)' }
 Plug 'easymotion/vim-easymotion'
 Plug 'scrooloose/nerdcommenter', { 'on': 'NERDCommenterToggle' }

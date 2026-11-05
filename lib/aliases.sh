@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Shell 别名定义
 
 # --- Git ---
@@ -35,7 +36,6 @@ fi
 # --- 通用 ---
 alias cd='cd -P'
 alias vi='vim'
-alias tmux='tmux -2'
 alias grep='grep --color=auto -I'
 alias pkill='pkill -u $USER'
 alias pw='pwd'
