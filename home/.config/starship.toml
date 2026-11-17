@@ -19,4 +19,5 @@ style = "bold red"
 [time]
 disabled = false
 style = "bold yellow"
-format = '[%T]'
+format = '[\[$time\]]($style) '
+time_format = '%T'
