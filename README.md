@@ -232,13 +232,23 @@ herdr --session project
   ```
 
 - **Shell 私有配置**:
-  可以创建一个 `~/.bashrc.local` 文件 (需手动创建),用于存放您不想提交到仓库的个人别名、函数或环境变量. 然后在 `home/.bashrc` 文件末尾添加 `source ~/.bashrc.local` 来加载它.
+  业务和工具的环境变量统一写入本机 `~/.config/shell/env.sh`, 使用字面量 `export NAME='值'`. 目录权限 `0700`, 文件权限 `0600`; 通过私有渠道迁移, 不提交 Git. 安装器在现有 `.bashrc` / `.zshrc` 顶部加入加载规则, 保留原有内容, 重复安装不会追加重复规则. 文件尚未配置时跳过加载.
+
+  个人别名和函数仍可放在手动创建的 `~/.bashrc.local`, 并在自己的 `~/.bashrc` 末尾添加 `source ~/.bashrc.local`.
+
+- **Codex 非交互 Bash**:
+  安装器提供 `~/.codex/shell-env.sh` 加载入口. 在本机 `~/.codex/config.toml` 配置实际绝对路径, 然后重启 Codex:
+  ```toml
+  [shell_environment_policy.set]
+  BASH_ENV = "/Users/你的用户名/.codex/shell-env.sh"
+  ```
+  此入口读取同一份私有环境, 随后清空子进程的 `BASH_ENV`, 避免嵌套 Bash 重载并覆盖临时账号或显式空值. 普通 Bash/Zsh 加载私有文件时保留原有 `BASH_ENV`; 不把 Codex 的进程策略写入通用环境文件.
 
 ## 开发检查
 
 ```bash
 bash -n install.sh
-shellcheck install.sh home/.bashrc lib/*.sh
+shellcheck install.sh home/.bashrc home/.codex/shell-env.sh lib/*.sh
 python3 -m unittest discover -s tests -v
 ```
 

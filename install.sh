@@ -233,6 +233,21 @@ esac
 # 2. 创建配置文件链接
 info "🔗 正在创建配置文件的链接..."
 
+# 通用私有环境在交互式判断之前加载; Bash 和 Zsh 使用同一份配置.
+# shellcheck disable=SC2016 # $HOME 由目标 Shell 在启动时展开.
+ENV_LOADER='[ ! -r "$HOME/.config/shell/env.sh" ] || . "$HOME/.config/shell/env.sh"'
+for rc in .bashrc .zshrc; do
+    dest="${HOME}/${rc}"
+    touch "$dest"
+    if ! grep -qxF "$ENV_LOADER" "$dest"; then
+        {
+            printf '# 加载本机私有环境变量\n%s\n\n' "$ENV_LOADER"
+            cat "$dest"
+        } > "$WORK_DIR/$rc"
+        cat "$WORK_DIR/$rc" > "$dest"
+    fi
+done
+
 # 特殊处理: 向 ~/.bashrc 追加 source 命令
 DOTFILES_BASHRC="${DOTFILES_DIR}/home/.bashrc"
 SYSTEM_BASHRC="${HOME}/.bashrc"
@@ -251,6 +266,7 @@ info "🔗 正在链接 'home' 目录下的文件..."
 
 # 需要链接的文件列表
 files_to_link=(
+    ".codex/shell-env.sh"
     ".gitconfig"
     ".gitignore_global"
     ".editorconfig"

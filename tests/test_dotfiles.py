@@ -176,6 +176,8 @@ class DotfilesTests(unittest.TestCase):
     def test_bootstrap_root_and_repeat(self):
         self.assertFalse((self.bin / "curl").exists())
         self.assertFalse((self.bin / "rsync").exists())
+        for rc in (".bashrc", ".zshrc"):
+            (self.home / rc).write_text("# existing customization\n")
         self.install()
         calls = self.calls()
         install = next(i for i, c in enumerate(calls) if c["cmd"] == "apt-get" and "install" in c["args"])
@@ -197,7 +199,46 @@ class DotfilesTests(unittest.TestCase):
         self.assertEqual(before, after)
         self.assertIn("# updated source", (self.home / ".gitconfig").read_text())
         self.assertEqual((self.home / ".bashrc").read_text().count("source '"), 1)
+        for rc in (".bashrc", ".zshrc"):
+            content = (self.home / rc).read_text()
+            self.assertEqual(content.count('. "$HOME/.config/shell/env.sh"'), 1)
+            self.assertIn("# existing customization", content)
+        self.assertEqual(
+            (self.home / ".codex/shell-env.sh").read_text(),
+            (self.repo / "home/.codex/shell-env.sh").read_text(),
+        )
         self.assertFalse((self.home / ".tmux.conf").exists())
+
+    def test_private_environment_and_codex_overrides(self):
+        private = self.home / ".config/shell/env.sh"
+        private.parent.mkdir(parents=True)
+        private.write_text("export PRIVATE_FIXTURE='configured'\n")
+        # 不需要安装软件即可验证实际安装器生成的加载语句.
+        loader = re.search(r"^ENV_LOADER='([^']+)'$", (ROOT / "install.sh").read_text(), re.M).group(1)
+        script = loader + '\nprintf "%s\\n" "$PRIVATE_FIXTURE" "$BASH_ENV"'
+        for shell in ("/bin/bash", shutil.which("zsh")):
+            if shell is None:
+                continue
+            with self.subTest(shell=shell):
+                result = subprocess.run(
+                    [shell, "-c", script],
+                    env={**self.env, "PRIVATE_FIXTURE": "stale", "BASH_ENV": "/dev/null"},
+                    text=True, capture_output=True, check=True,
+                )
+                self.assertEqual(result.stdout.splitlines(), ["configured", "/dev/null"])
+        for value in ("temporary", ""):
+            with self.subTest(override=value):
+                result = subprocess.run(
+                    ["/bin/bash", "-c", 'PRIVATE_FIXTURE="$1" /bin/bash -c \'printf "%s\\n" "$PRIVATE_FIXTURE" "$BASH_ENV"\'', "test", value],
+                    env={**self.env, "BASH_ENV": str(ROOT / "home/.codex/shell-env.sh")},
+                    text=True, capture_output=True, check=True,
+                )
+                self.assertEqual(result.stdout.splitlines(), [value, ""])
+        private.unlink()
+        result = subprocess.run(
+            ["/bin/bash", "-c", loader], env=self.env, text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_dnf_arm64_sudo_and_explicit_proxy(self):
         (self.bin / "apt-get").unlink()
